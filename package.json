@@ -2,12 +2,12 @@
     "name": "flutter-mirror",
     "displayName": "Flutter Mirror",
     "description": "Flutter项目的Gradle分发源替换为腾讯云镜像",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "engines": {
         "vscode": "^1.107.0"
     },
     "publisher": "morningstart",
-	"repository": "https://github.com/morning-start/flutter-mirror",
+    "repository": "https://github.com/morning-start/flutter-mirror",
     "icon": "flutter-cn-logo-default.png",
     "categories": [
         "Other"
