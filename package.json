@@ -1,7 +1,7 @@
 {
     "name": "flutter-mirror",
-    "displayName": "flutter-mirror",
-    "description": "flutter的安卓开发镜像替换",
+    "displayName": "Flutter Mirror",
+    "description": "Flutter项目的Gradle分发源替换为腾讯云镜像",
     "version": "0.0.1",
     "engines": {
         "vscode": "^1.107.0"
@@ -14,8 +14,8 @@
     "contributes": {
         "commands": [
             {
-                "command": "fluter-tuna.replaceMirror",
-                "title": "Flutter: 替换为国内镜像源",
+                "command": "flutter-mirror.replaceMirror",
+                "title": "替换为腾讯云镜像源",
                 "category": "Flutter"
             }
         ]
@@ -24,7 +24,6 @@
         "vscode:prepublish": "pnpm run package",
         "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
         "watch": "npm-run-all -p watch:*",
-        "watch:esbuild": "node esbuild.js --watch",
         "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
         "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
         "compile-tests": "tsc -p . --outDir out",

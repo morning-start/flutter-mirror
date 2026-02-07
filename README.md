@@ -1,71 +1,98 @@
-# flutter-mirror README
+# Flutter 镜像源替换工具
 
-This is the README for your extension "flutter-mirror". After writing up a brief description, we recommend including the following sections.
+一个用于快速替换 Flutter 项目 Gradle 分发源为国内镜像源的 VS Code 扩展。
 
-## Features
+## 功能特性
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+本扩展可以一键将 Flutter 项目的 Gradle 分发源替换为腾讯云镜像，大幅提升 Gradle 下载速度：
 
-For example if there is an image subfolder under your extension project workspace:
+- ✅ **替换 Gradle 分发源**：将 Gradle 下载地址替换为腾讯云镜像
+- ✅ **智能检测**：自动检测 Flutter 项目，避免重复修改
+- ✅ **详细反馈**：提供清晰的修改结果提示
 
-\!\[feature X\]\(images/feature-x.png\)
+## 使用方法
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+1. 在 VS Code 中打开你的 Flutter 项目
+2. 按 `Ctrl+Shift+P`（Windows/Linux）或 `Cmd+Shift+P`（macOS）打开命令面板
+3. 输入并选择 `Flutter: 替换为国内镜像源`
+4. 等待替换完成，查看结果
 
-## Requirements
+## 工作原理
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+本扩展会自动修改以下文件：
 
-## Extension Settings
+### `android/gradle/wrapper/gradle-wrapper.properties`
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+将 Gradle 分发 URL 从：
 
-For example:
+```
+distributionUrl=https\://services.gradle.org/distributions/gradle-x.x-all.zip
+```
 
-This extension contributes the following settings:
+替换为：
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+```
+distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-x.x-all.zip
+```
 
-## Known Issues
+## 要求
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- VS Code 版本：^1.107.0
+- Flutter 项目（包含 `android` 目录）
 
-## Release Notes
+## 已知问题
 
-Users appreciate release notes as you update your extension.
+- 如果项目没有标准的 Flutter Android 目录结构，可能无法正常工作
 
-### 1.0.0
+## 更新日志
 
-Initial release of ...
+详细的更新日志请查看 [CHANGELOG.md](CHANGELOG.md)
 
-### 1.0.1
+### 0.0.1 (2026-02-07)
 
-Fixed issue #.
+- ✅ 初始版本发布
+- ✅ 自动替换 `android/gradle/wrapper/gradle-wrapper.properties` 中的 Gradle 分发源
+- ✅ 命令面板集成（`Flutter: 替换为国内镜像源`）
+- ✅ 智能检测 Flutter 项目
+- ✅ 智能跳过已配置的镜像源
+- ✅ 提供清晰的修改结果反馈
 
-### 1.1.0
+## 开发
 
-Added features X, Y, and Z.
+### 安装依赖
 
----
+```bash
+pnpm install
+```
 
-## Following extension guidelines
+### 编译
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+```bash
+pnpm run compile
+```
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+### 打包
 
-## Working with Markdown
+```bash
+pnpm run package
+```
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+### 运行测试
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+```bash
+pnpm run test
+```
 
-## For more information
+## 许可证
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+MIT
 
-**Enjoy!**
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 镜像源说明
+
+本扩展使用的镜像源：
+
+- **腾讯云 Gradle 镜像**：https://mirrors.cloud.tencent.com/gradle/
