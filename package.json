@@ -6,7 +6,9 @@
     "engines": {
         "vscode": "^1.107.0"
     },
-    "publisher": "morning-start",
+    "publisher": "morningstart",
+	"repository": "https://github.com/morning-start/flutter-mirror",
+    "icon": "flutter-cn-logo-default.png",
     "categories": [
         "Other"
     ],
