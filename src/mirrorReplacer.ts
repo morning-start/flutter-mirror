@@ -3,14 +3,34 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// 腾讯云镜像Gradle分发URL
-const TENCENT_GRADLE_DISTRIBUTION_URL = '//mirrors.cloud.tencent.com/gradle/';
+/**
+ * 获取配置的Gradle镜像URL
+ * 优先级：用户配置 > 默认腾讯云镜像
+ * 返回格式: //mirrors.cloud.tencent.com/gradle/
+ */
+function getGradleMirrorUrl(): string {
+    const config = vscode.workspace.getConfiguration('flutterMirror');
+    let userUrl = config.get<string>('gradleMirrorUrl', '');
+    // 如果配置为空，使用默认的腾讯云镜像
+    if (!userUrl) {
+        userUrl = 'mirrors.cloud.tencent.com/gradle';
+    }
+    // 确保 URL 格式为 //host/path/
+    let normalizedUrl = userUrl;
+    if (!normalizedUrl.startsWith('//')) {
+        normalizedUrl = '//' + normalizedUrl;
+    }
+    if (!normalizedUrl.endsWith('/')) {
+        normalizedUrl = normalizedUrl + '/';
+    }
+    return normalizedUrl;
+}
 
 // Gradle版本正则表达式
-const GRADLE_VERSION_REGEX = /gradle-([^\s\/]+)-all\.zip/;
 const DISTRIBUTION_URL_REGEX = /distributionUrl=https[:\\\/]+services\.gradle\.org\/distributions\/(gradle-[^\s]+\.zip)/;
 const ALT_DISTRIBUTION_URL_REGEX = /distributionUrl=(https[^\s]*services\.gradle\.org[^\s]*)/;
 const ANY_DISTRIBUTION_URL_REGEX = /distributionUrl=.*/;
+const GRADLE_DIR_REGEX = /gradle-([\d.]+)-(all|bin)/;
 
 /**
  * 获取默认的Gradle路径
@@ -116,23 +136,70 @@ function writeGradleWrapperProperties(filePath: string, content: string): boolea
  * 提取Gradle版本号
  */
 function extractGradleVersion(content: string): string | null {
-    const match = content.match(GRADLE_VERSION_REGEX);
+    const match = content.match(/gradle-([\d.]+)/);
     return match?.[1] ?? null;
 }
 
 /**
- * 查找本地Gradle zip文件
+ * 比较两个版本号
+ * @returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
  */
-function findLocalGradleZip(localGradlePath: string, gradleVersion: string): string | null {
+function compareVersions(v1: string, v2: string): number {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    const maxLen = Math.max(parts1.length, parts2.length);
+    
+    for (let i = 0; i < maxLen; i++) {
+        const p1 = parts1[i] || 0;
+        const p2 = parts2[i] || 0;
+        if (p1 > p2) return 1;
+        if (p1 < p2) return -1;
+    }
+    return 0;
+}
+
+/**
+ * 扫描本地所有可用的Gradle版本
+ * @returns 版本号数组，按版本号降序排列
+ */
+function scanLocalGradleVersions(localGradlePath: string): string[] {
     try {
         const distsDir = path.resolve(localGradlePath);
         if (!fs.existsSync(distsDir)) {
-            return null;
+            return [];
         }
 
-        const gradleDirName = `gradle-${gradleVersion}-all`;
-        const gradleDirPath = path.join(distsDir, gradleDirName);
+        const versions: string[] = [];
+        const entries = fs.readdirSync(distsDir, { withFileTypes: true });
 
+        for (const entry of entries) {
+            if (entry.isDirectory()) {
+                const match = entry.name.match(GRADLE_DIR_REGEX);
+                if (match) {
+                    const version = match[1];
+                    // 验证该版本是否有完整的zip文件
+                    const zipPath = findGradleZipPath(distsDir, entry.name);
+                    if (zipPath) {
+                        versions.push(version);
+                    }
+                }
+            }
+        }
+
+        // 按版本号降序排列
+        return versions.sort((a, b) => compareVersions(b, a));
+    } catch (error) {
+        console.error('扫描本地Gradle版本时出错:', error);
+        return [];
+    }
+}
+
+/**
+ * 查找指定Gradle目录下的zip文件路径
+ */
+function findGradleZipPath(distsDir: string, gradleDirName: string): string | null {
+    try {
+        const gradleDirPath = path.join(distsDir, gradleDirName);
         if (!fs.existsSync(gradleDirPath)) {
             return null;
         }
@@ -147,10 +214,9 @@ function findLocalGradleZip(localGradlePath: string, gradleVersion: string): str
                 }
             }
         }
-
         return null;
     } catch (error) {
-        console.error('查找本地Gradle文件时出错:', error);
+        console.error('查找Gradle zip文件时出错:', error);
         return null;
     }
 }
@@ -192,11 +258,12 @@ async function modifyGradleWrapperPropertiesForTencent(androidDir: string): Prom
         return `❌ gradle-wrapper.properties: 读取失败`;
     }
 
-    if (content.includes('mirrors.cloud.tencent.com/gradle')) {
-        return `⏭️ gradle-wrapper.properties: 已使用腾讯云镜像，跳过`;
+    const mirrorUrl = getGradleMirrorUrl();
+    if (content.includes(mirrorUrl)) {
+        return `⏭️ gradle-wrapper.properties: 已使用配置的镜像，跳过`;
     }
 
-    const newContent = replaceWithTencentUrl(content);
+    const newContent = replaceWithMirrorUrl(content);
     
     if (newContent === content) {
         return `⏭️ gradle-wrapper.properties: 无需修改`;
@@ -206,18 +273,20 @@ async function modifyGradleWrapperPropertiesForTencent(androidDir: string): Prom
         return `❌ gradle-wrapper.properties: 写入失败`;
     }
 
-    return `✅ gradle-wrapper.properties: 已成功替换为腾讯云镜像`;
+    return `✅ gradle-wrapper.properties: 已成功替换为镜像 (${mirrorUrl})`;
 }
 
 /**
- * 将distributionUrl替换为腾讯云镜像URL
+ * 将distributionUrl替换为配置的镜像URL
  */
-function replaceWithTencentUrl(content: string): string {
+function replaceWithMirrorUrl(content: string): string {
+    const mirrorUrl = getGradleMirrorUrl();
+
     // 尝试匹配标准格式
     const match = content.match(DISTRIBUTION_URL_REGEX);
     if (match) {
         const gradleVersion = match[1];
-        return content.replace(DISTRIBUTION_URL_REGEX, `distributionUrl=https\\:${TENCENT_GRADLE_DISTRIBUTION_URL}${gradleVersion}`);
+        return content.replace(DISTRIBUTION_URL_REGEX, `distributionUrl=https\\:${mirrorUrl}${gradleVersion}`);
     }
 
     // 尝试匹配其他格式
@@ -226,7 +295,7 @@ function replaceWithTencentUrl(content: string): string {
         const originalUrl = altMatch[1];
         const versionMatch = originalUrl.match(/gradle-([^\/]+)\.zip/);
         if (versionMatch) {
-            const newUrl = `https\\:${TENCENT_GRADLE_DISTRIBUTION_URL}gradle-${versionMatch[1]}.zip`;
+            const newUrl = `https\\:${mirrorUrl}gradle-${versionMatch[1]}.zip`;
             return content.replace(ALT_DISTRIBUTION_URL_REGEX, `distributionUrl=${newUrl}`);
         }
     }
@@ -264,16 +333,40 @@ async function modifyGradleWrapperPropertiesForLocal(androidDir: string): Promis
         return `❌ gradle-wrapper.properties: 读取失败`;
     }
 
-    const gradleVersion = extractGradleVersion(content);
-    if (!gradleVersion) {
+    const requiredVersion = extractGradleVersion(content);
+    if (!requiredVersion) {
         return `⚠️ gradle-wrapper.properties: 无法解析Gradle版本`;
     }
 
     const localGradlePath = getLocalGradlePath();
-    const localZipPath = findLocalGradleZip(localGradlePath, gradleVersion);
+    
+    // 扫描本地所有可用版本
+    const availableVersions = scanLocalGradleVersions(localGradlePath);
+    
+    if (availableVersions.length === 0) {
+        return `❌ gradle-wrapper.properties: 在 ${localGradlePath} 中未找到任何可用的Gradle版本`;
+    }
+
+    // 查找大于等于要求版本的最新版本
+    let selectedVersion: string | null = null;
+    for (const version of availableVersions) {
+        if (compareVersions(version, requiredVersion) >= 0) {
+            selectedVersion = version;
+            break;
+        }
+    }
+
+    if (!selectedVersion) {
+        const availableList = availableVersions.join(', ');
+        return `❌ gradle-wrapper.properties: 未找到满足要求的Gradle版本。项目要求: ${requiredVersion}，本地可用: ${availableList}`;
+    }
+
+    // 查找选定版本的zip文件路径
+    const gradleDirName = `gradle-${selectedVersion}-all`;
+    const localZipPath = findGradleZipPath(localGradlePath, gradleDirName);
 
     if (!localZipPath) {
-        return `❌ gradle-wrapper.properties: 未找到本地Gradle ${gradleVersion}版本，请检查配置路径: ${localGradlePath}`;
+        return `❌ gradle-wrapper.properties: 找到版本 ${selectedVersion} 但无法定位zip文件`;
     }
 
     const fileUrl = toFileUrl(localZipPath);
@@ -287,7 +380,10 @@ async function modifyGradleWrapperPropertiesForLocal(androidDir: string): Promis
         return `❌ gradle-wrapper.properties: 写入失败`;
     }
 
-    return `✅ gradle-wrapper.properties: 已替换为本地Gradle文件 (${localZipPath})`;
+    const versionInfo = selectedVersion === requiredVersion 
+        ? selectedVersion 
+        : `${requiredVersion} → ${selectedVersion}`;
+    return `✅ gradle-wrapper.properties: 已替换为本地Gradle文件 (版本: ${versionInfo}, 路径: ${localZipPath})`;
 }
 
 // ==================== 工具函数 ====================
