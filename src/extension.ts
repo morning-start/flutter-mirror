@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { replaceFlutterMirror } from './mirrorReplacer';
+import { replaceWithTencentMirror, replaceWithLocalGradle } from './mirrorReplacer';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -15,12 +15,17 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	// 注册替换国内镜像源的命令
-	const disposableReplaceMirror = vscode.commands.registerCommand('flutter-mirror.replaceMirror', async () => {
-		await replaceFlutterMirror();
+	// 注册替换为腾讯云镜像源的命令
+	const disposableReplaceTencent = vscode.commands.registerCommand('flutter-mirror.replaceTencentMirror', async () => {
+		await replaceWithTencentMirror();
 	});
 
-	context.subscriptions.push(disposableReplaceMirror);
+	// 注册替换为本地Gradle文件的命令
+	const disposableReplaceLocal = vscode.commands.registerCommand('flutter-mirror.replaceLocalGradle', async () => {
+		await replaceWithLocalGradle();
+	});
+
+	context.subscriptions.push(disposableReplaceTencent, disposableReplaceLocal);
 }
 
 // This method is called when your extension is deactivated
