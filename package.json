@@ -2,7 +2,7 @@
     "name": "flutter-mirror",
     "displayName": "Flutter Mirror",
     "description": "Flutter项目的Gradle分发源替换为腾讯云镜像",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "engines": {
         "vscode": "^1.107.0"
     },
