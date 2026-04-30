@@ -12,7 +12,10 @@
     "categories": [
         "Other"
     ],
-    "activationEvents": [],
+    "activationEvents": [
+        "flutter-mirror.replaceTencentMirror",
+        "flutter-mirror.replaceLocalGradle"
+    ],
     "main": "./dist/extension.js",
     "contributes": {
         "commands": [
